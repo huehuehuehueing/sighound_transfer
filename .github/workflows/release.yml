@@ -1,20 +1,35 @@
-# .github/workflows/linux.yml
-name: Linux Build and Test
+# .github/workflows/release.yml
+name: Release
 
 on:
   push:
-    branches: [main, master]
-  pull_request:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.1.0)'
+        required: true
 
 jobs:
-  build-test:
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     env:
       SIGNALHOUND_SDK_URL: ${{ vars.SIGNALHOUND_SDK_URL || 'https://signalhound.com/sigdownloads/SDK/signal_hound_sdk_02_19_26.zip' }}
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Determine release tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "RELEASE_TAG=${{ github.event.inputs.tag }}" >> $GITHUB_ENV
+          else
+            echo "RELEASE_TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+          fi
 
       - name: Install system dependencies
         run: |
@@ -44,11 +59,20 @@ jobs:
       - name: Run unit tests
         run: ctest --test-dir build -V --output-on-failure
 
-      - name: Verify binary exists
+      - name: Package
         run: |
-          ls -la build/sighound_transfer
-          SDK_LIB="$SIGNALHOUND_SDK_ROOT/device_apis/bb_series/lib/linux_x64/Ubuntu 18.04"
-          SDK_LIB_FILE=$(find "$SDK_LIB" -maxdepth 1 -name "libbb_api.so.*.*" | head -1)
-          SONAME=$(objdump -p build/sighound_transfer | awk '/NEEDED.*libbb_api/{print $2}')
-          ln -sf "$(basename "$SDK_LIB_FILE")" "$SDK_LIB/$SONAME"
-          LD_LIBRARY_PATH="$SDK_LIB" ./build/sighound_transfer --version
+          ARCHIVE="sighound_transfer-${RELEASE_TAG}-linux-x64.tar.gz"
+          tar -czf "$ARCHIVE" -C build sighound_transfer
+          sha256sum "$ARCHIVE" > "${ARCHIVE}.sha256"
+          cat "${ARCHIVE}.sha256"
+          echo "ARCHIVE=$ARCHIVE" >> $GITHUB_ENV
+
+      - name: Create GitHub release
+        run: |
+          gh release create "$RELEASE_TAG" \
+            "$ARCHIVE" \
+            "${ARCHIVE}.sha256" \
+            --title "sighound_transfer $RELEASE_TAG" \
+            --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
