@@ -47,5 +47,8 @@ jobs:
         run: |
           ls -la build/sighound_transfer
           SDK_LIB=$(find "$SIGNALHOUND_SDK_ROOT/device_apis/bb_series/lib/linux_x64" \
-            -maxdepth 2 -name "libbb_api.so.*" | head -1 | xargs dirname)
+            -maxdepth 2 -name "libbb_api.so.*.*" | head -1 | xargs dirname)
+          SONAME=$(objdump -p build/sighound_transfer | awk '/NEEDED.*libbb_api/{print $2}')
+          ln -sf "$(find "$SDK_LIB" -maxdepth 1 -name "libbb_api.so.*.*" | head -1 | xargs basename)" \
+                 "$SDK_LIB/$SONAME"
           LD_LIBRARY_PATH="$SDK_LIB" ./build/sighound_transfer --version
