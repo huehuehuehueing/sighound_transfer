@@ -46,4 +46,6 @@ jobs:
       - name: Verify binary exists
         run: |
           ls -la build/sighound_transfer
-          ./build/sighound_transfer --version
+          SDK_LIB=$(find "$SIGNALHOUND_SDK_ROOT/device_apis/bb_series/lib/linux_x64" \
+            -maxdepth 2 -name "libbb_api.so.*" | head -1 | xargs dirname)
+          LD_LIBRARY_PATH="$SDK_LIB" ./build/sighound_transfer --version
