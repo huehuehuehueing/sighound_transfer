@@ -1,0 +1,6 @@
+# .gitignore
+build/
+.sdk_cache/
+*.o
+*.a
+*.so

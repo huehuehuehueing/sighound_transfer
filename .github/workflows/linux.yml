@@ -1,0 +1,49 @@
+# .github/workflows/linux.yml
+name: Linux Build and Test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    env:
+      SIGNALHOUND_SDK_URL: ${{ vars.SIGNALHOUND_SDK_URL || 'https://signalhound.com/sigdownloads/SDK/signal_hound_sdk_02_19_26.zip' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libusb-1.0-0-dev unzip curl
+
+      - name: Cache SDK archive
+        uses: actions/cache@v4
+        with:
+          path: .sdk_cache/sdk.zip
+          key: signalhound-sdk-${{ hashFiles('scripts/bootstrap_sdk.sh') }}-${{ env.SIGNALHOUND_SDK_URL }}
+
+      - name: Bootstrap Signal Hound SDK
+        run: |
+          bash scripts/bootstrap_sdk.sh
+          echo "SIGNALHOUND_SDK_ROOT=$(pwd)/.sdk_cache/signal_hound_sdk" >> $GITHUB_ENV
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DSIGNALHOUND_SDK_ROOT="$SIGNALHOUND_SDK_ROOT"
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run unit tests
+        run: ctest --test-dir build -V --output-on-failure
+
+      - name: Verify binary exists
+        run: |
+          ls -la build/sighound_transfer
+          ./build/sighound_transfer --version

@@ -1,0 +1,53 @@
+# .gitlab-ci.yml
+image: ubuntu:22.04
+
+variables:
+  SIGNALHOUND_SDK_URL: "https://signalhound.com/sigdownloads/SDK/signal_hound_sdk_02_19_26.zip"
+  SDK_CACHE_DIR: ".sdk_cache"
+
+stages:
+  - build
+  - test
+
+cache:
+  key: "sdk-${CI_COMMIT_REF_SLUG}-${SIGNALHOUND_SDK_URL}"
+  paths:
+    - .sdk_cache/sdk.zip
+
+before_script:
+  - apt-get update -q
+  - apt-get install -y -q cmake libusb-1.0-0-dev unzip curl git
+
+bootstrap-sdk:
+  stage: .pre
+  script:
+    - bash scripts/bootstrap_sdk.sh
+    - echo "SDK_ROOT=$(pwd)/.sdk_cache/signal_hound_sdk" > sdk.env
+  artifacts:
+    reports:
+      dotenv: sdk.env
+    paths:
+      - .sdk_cache/signal_hound_sdk/
+    expire_in: 1 day
+
+build-linux:
+  stage: build
+  needs: [bootstrap-sdk]
+  script:
+    - cmake -B build -DCMAKE_BUILD_TYPE=Release -DSIGNALHOUND_SDK_ROOT="$SDK_ROOT"
+    - cmake --build build --parallel
+  artifacts:
+    paths:
+      - build/sighound_transfer
+      - build/tests/
+    expire_in: 1 hour
+
+test-linux:
+  stage: test
+  needs: [build-linux]
+  script:
+    - ctest --test-dir build -V --output-on-failure --output-junit build/test_results.xml
+  artifacts:
+    reports:
+      junit: build/test_results.xml
+    when: always
