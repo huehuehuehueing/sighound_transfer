@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026  Larry H  <l.gr [at] dartmouth [dot] edu>
 // See LICENSE for the full terms.
+//
+// Linking exception: you may combine and distribute this program with the
+// proprietary Signal Hound BB API (libbb_api) and FTDI D2XX (libftd2xx)
+// libraries under their respective license terms. The GPL requirements of
+// this file do not extend to those libraries.
 #include "util/progress.hpp"
 #include <cstdio>
 

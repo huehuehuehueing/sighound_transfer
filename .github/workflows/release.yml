@@ -34,7 +34,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake libusb-1.0-0-dev unzip curl patchelf
+          sudo apt-get install -y cmake libusb-1.0-0-dev unzip curl
 
       - name: Cache SDK archive
         uses: actions/cache@v4
@@ -61,19 +61,12 @@ jobs:
 
       - name: Package
         run: |
-          SDK_LIB="$SIGNALHOUND_SDK_ROOT/device_apis/bb_series/lib/linux_x64/Ubuntu 18.04"
-          SDK_LIB_FILE=$(find "$SDK_LIB" -maxdepth 1 -name "libbb_api.so.*.*" | head -1)
-          SONAME=$(objdump -p build/sighound_transfer | awk '/NEEDED.*libbb_api/{print $2}')
-
-          # Embed RPATH=$ORIGIN so the binary finds bundled DSOs in its own directory
-          patchelf --set-rpath '$ORIGIN' build/sighound_transfer
-
+          # The Signal Hound BB API and FTDI D2XX libraries (libbb_api, libftd2xx)
+          # are proprietary and may not be redistributed. Users must obtain the
+          # SDK from Signal Hound directly (hardware purchase entitles them to it).
           STAGE="sighound_transfer-${RELEASE_TAG}-linux-x64"
           mkdir "$STAGE"
           cp build/sighound_transfer "$STAGE/"
-          cp "$SDK_LIB_FILE"         "$STAGE/"
-          ln -sf "$(basename "$SDK_LIB_FILE")" "$STAGE/$SONAME"
-          cp "$SDK_LIB/libftd2xx.so" "$STAGE/"
 
           ARCHIVE="${STAGE}.tar.gz"
           tar -czf "$ARCHIVE" "$STAGE"
